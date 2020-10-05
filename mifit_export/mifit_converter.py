@@ -6,23 +6,13 @@ from collections import namedtuple
 from datetime import datetime
 from itertools import accumulate
 import sys
-import click
 import xmltodict
-from clickclick import AliasedGroup
 from deepmerge import conservative_merger
 
-import mifit_exporter
-
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 NO_VALUE = -2000000
 FIX_BIP_GAPS = False
 
-output_option = click.option('-o',
-                             '--output',
-                             type=click.Choice(['text', 'json', 'tsv']),
-                             default='text',
-                             help='Use alternative output format')
 
 RawTrackData = namedtuple('RawTrackData', [
     'start_time', 'end_time', 'cost_time', 'avg_heart_rate', 'max_heart_rate',
@@ -52,10 +42,6 @@ class Interpolate(object):
         return self.y_list[i] + self.slopes[i] * (x - self.x_list[i])
 
 
-def print_version():
-    click.echo('mifit-exporter {}'.format(mifit_exporter.__version__))
-
-
 def export_all_tracks(summary, detail, output_file):
     with open(detail, 'r') as f:
         data = json.load(f)
@@ -63,6 +49,11 @@ def export_all_tracks(summary, detail, output_file):
         conservative_merger.merge(data, json.load(f))
 
     export_activity(parse_activity_data(data), output_file)
+
+
+def convert_track_from_json(summary, detail, output_file):
+    conservative_merger.merge(detail, summary)
+    export_activity(parse_activity_data(detail), output_file)
 
 
 def export_activity(activity, output_file):
@@ -292,23 +283,3 @@ def parse_activity_data(data):
     )
     return track_data
 
-
-# @click.option('-V',
-#               '--version',
-#               is_flag=True,
-#               callback=print_version,
-#               expose_value=False,
-#               is_eager=True,
-#               help='Print the current version number and exit.')
-@click.group(invoke_without_command=True,
-             cls=AliasedGroup,
-             context_settings=CONTEXT_SETTINGS)
-@click.argument('summary', type=click.Path(exists=True))
-@click.argument('detail', type=click.Path(exists=True))
-@click.argument('output_file')
-def cli(summary, detail, output_file):
-    export_all_tracks(summary, detail, output_file)
-
-
-def main():
-    cli()
