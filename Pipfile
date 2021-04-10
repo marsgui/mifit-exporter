@@ -4,8 +4,6 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-click = "*"
-clickclick = "*"
 dicttoxml = "*"
 xmltodict = "*"
 deepmerge = "*"
@@ -15,4 +13,4 @@ flake8 = "*"
 yapf = "*"
 
 [requires]
-python_version = "3.6"
+python_version = ">=3.6"
