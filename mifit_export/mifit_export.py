@@ -103,7 +103,7 @@ class MifitCache:
             cwd = os.getcwd()
             os.chdir(cache_dir)
 
-        if mifit:
+        if mifit and mifit.activities:
             self.activities = mifit.activities
             self.tracks = mifit.tracks
         json_dump(self.activities, "activities.json")
@@ -216,14 +216,17 @@ def json_dump(data, output_file):
 
 
 def main():
-    from mifit_converter import convert_track_from_json
+    from mifit_export.mifit_converter import convert_track_from_json
     from optparse import OptionParser
+    from configparser import RawConfigParser
 
     parser = OptionParser(version="%prog", usage="%prog [options]")
 
-    parser.add_option("--cache-in", "--ci", action='store',
+    parser.add_option("-c", "--config-file", action='store',
+              help='Specify the config file to apply')
+    parser.add_option("-i", "--cache-in", action='store',
               help='Specify the mifit input cache directory')
-    parser.add_option("--cache-out", "--co", action='store',
+    parser.add_option("-a", "--cache-out", action='store',
               help='Specify the mifit output cache directory')
     parser.add_option("-u", "--update", action='store_true',
               help='Load latest activities from mifit servers')
@@ -245,6 +248,24 @@ def main():
 
     mifit = Mifit()
 
+    config_file = options.config_file or \
+                  os.path.expanduser("~/.config/mifit.cfg")
+
+    if os.path.isfile(config_file):
+        print("Found config file '%s'" % config_file)
+        config = RawConfigParser()
+        config.read(config_file)
+        if "cache" in config:
+            cache = config["cache"]
+            if not(options.cache_in):
+                options.cache_in = cache.get("input")
+            if not(options.cache_out):
+                options.cache_out = cache.get("output")
+        if "export" in config:
+            export = config["export"]
+            if not(options.output_tcx_dir):
+                options.output_tcx_dir = export.get("tcxdir")
+
     if options.range:
         # TODO
         pass
@@ -258,7 +279,7 @@ def main():
         print("Google token:\n'%s'" % token)
         mifit.login(token)
         mifit.load_activities()
-        mifit.update_tracks()
+        mifit.update_tracks(force=options.force)
 
     if options.cache_out:
         mifit.dump_cache(cache_dir=options.cache_out)
@@ -279,6 +300,9 @@ def main():
 
     if options.tcx:
         for track in mifit.get_tracks():
+            # On update, just export the updated tracks, otherwise export... all
+            if options.update and not(track.updated):
+                continue
             print("Export trackid=%s to TCX" % (track.trackid))
             tcx_file = os.path.join(options.output_tcx_dir,
                                     "track_%s.tcx" % track.trackid)
